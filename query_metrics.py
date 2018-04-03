@@ -8,6 +8,8 @@ import config
 from datetime import datetime
 from config import STORAGE_PROMETHEUS, QUERY_PARAMS, metrics_to_query
 
+failed_metrics = []
+
 def query_status(response_json):
     status = response_json['status']
     if status != 'success':
@@ -27,7 +29,7 @@ def get_metrics_labels(name_regexp='__name__'):
 
     return results_json['data'][1:]
 
-def get_timeseries(metric, start=1522615224, end=1522617224, step='1m'):
+def get_timeseries(metric, start, end, step='1m'):
     total_query = '{0}/api/v1/query_range'.format(STORAGE_PROMETHEUS)
     query = metric + QUERY_PARAMS
 
@@ -52,11 +54,9 @@ def get_timeseries(metric, start=1522615224, end=1522617224, step='1m'):
     results = results_json['data']['result']
 
     if len(results) == 0:
-        print 'Unable to extract data, json is empty.'
-        print 'Exiting right now.'
-        sys.exit()
-
-#    print json.dumps(results, indent=4)
+        print metric + ' - unable to extract data'
+        failed_metrics.append(metric)
+        return None
 
     return results
 
@@ -72,6 +72,22 @@ def datetime_to_unix(date):
     dt = datetime.strptime(date, "%d/%m/%Y %H:%M")
 
     return time.mktime(dt.timetuple())
+
+def dump_timeseries(results, start, end):
+    for ts_json in results:
+        print '[dump_time_series] dumping json part'
+
+        for response in ts_json:
+            instance = response['metric']['instance']
+            name = response['metric']['__name__']
+
+            for gauge in response['values']:
+                print '{1} {0} at [{2}] value - {3}'.format(instance,
+                                                            name,
+                                                            gauge[0],
+                                                            gauge[1])
+
+            print '-----------'
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -93,66 +109,65 @@ def get_csv_name(name, date):
 def query_metrics(metrics_to_query, start, end):
     results = []
 
+    ts_start = int(datetime_to_unix(start))
+    ts_end = int(datetime_to_unix(end))
+    
     for metric in metrics_to_query:
         print '[query_metrics] query: ' + metric
-        ts_json = get_timeseries(metric, start, end)
+        ts_json = get_timeseries(metric, ts_start, ts_end)
+        if ts_json == None:
+            continue
+
+        query_to_csv(ts_json, start)
 
         results.append(ts_json)
 
     return results
 
-def dump_timeseries(results, start, end):
-    for ts_json in results:
-        print '[dump_time_series] dumping json part'
-
-        for response in ts_json:
-            instance = response['metric']['instance']
-            name = response['metric']['__name__']
-
-            for gauge in response['values']:
-                print '{1} {0} at [{2}] value - {3}'.format(instance,
-                                                            name,
-                                                            gauge[0],
-                                                            gauge[1])
-
-            print '-----------'
-
 def query_to_csv(results, start_time):
+    print '[query_to_csv] writing from json to csv: '
+
+    name = results[0]['metric']['__name__']
+    print 'name: ' + name
+
+    file_name = get_csv_name(name, start_time)
+    csv_file = open(file_name, 'wb')
+
+    field_names = ['name', 'dc', 'instance', 'time', 'value']
+    writer = csv.DictWriter(csv_file, fieldnames=field_names) 
+    writer.writeheader()
+
     for ts_json in results:
-        print '[query_to_csv] writing from json to csv: '
+#        print json.dumps(ts_json['metric'], indent=4)
+#        print json.dumps(ts_json['values'], indent=4)
 
-        for node_response in ts_json:
-            instance = node_response['metric']['instance']
-            name = node_response['metric']['__name__']
+        instance = ts_json['metric']['instance']
+#        print 'instance: ' + instance
 
-            file_name = get_csv_name(name, start_time)
-            csv_file = open(file_name, 'wb')
+        for gauge in ts_json['values']:
+            writer.writerow({
+                                'name': name,
+                                'instance': instance,
+                                'dc': config.DATA_CENTER,
+                                'time': gauge[0],
+                                'value': gauge[1]
+                            })
 
-            field_names = ['name', 'dc', 'instance', 'time', 'value']
-            writer = csv.DictWriter(csv_file, fieldnames=field_names) 
-
-            writer.writeheader()
-
-            for gauge in node_response['values']:
-                writer.writerow({
-                                    'name': name,
-                                    'instance': instance,
-                                    'dc': config.DATA_CENTER,
-                                    'time': gauge[0],
-                                    'value': gauge[1]
-                                })
-
-            csv_file.close()
+    csv_file.close()
 
 if __name__ == '__main__':
     args = parse_arguments()
 
-    start = int(datetime_to_unix(args.start))
-    end = int(datetime_to_unix(args.end))
+    metrics = get_metrics_labels()
+    necessary_metrics = [name for name in metrics
+                         if name.startswith(config.METRICS_PREFIX) and
+                         name not in config.BAD_METRICS]
 
-    results = query_metrics(metrics_to_query, start, end)
+    results = query_metrics(necessary_metrics, args.start, args.end)
 
+    for metric in failed_metrics:
+        print 'Failed: ' + metric
 #    dump_timeseries(results, start, end)
-    query_to_csv(results, args.start)
+#    query_to_csv(results, args.start)
 
 
