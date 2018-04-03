@@ -4,7 +4,7 @@ DATA_CENTER = 'eu6'
 
 DATASETS_DIR = 'datasets'
 
-METRICS_PREFIX = 'abgw_account'
+METRICS_PREFIX = 'abgw'
 
 metrics_to_query = [
     'abgw_conns',
