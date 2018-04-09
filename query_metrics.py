@@ -25,11 +25,15 @@ def get_metrics_labels(name_regexp='__name__'):
     if status == False:
         return None
 
-    return results_json['data'][1:]
+    print len(results_json['data'][1:])
+    return results_json['data'][1:-3]
 
 def get_timeseries(metric, start, end, step='1m'):
     total_query = '{0}/api/v1/query_range'.format(STORAGE_PROMETHEUS)
-    query = metric + QUERY_PARAMS
+    if config.TOTAL_SUM == True:
+        query = 'sum(' + metric + QUERY_PARAMS + ')'
+    else:
+        query = metric + QUERY_PARAMS
 
 #    print '[get_time_series] total query: ' + total_query
 #    print '[get_time_series] metric query: ' + query
@@ -99,9 +103,13 @@ def parse_arguments():
 
 def get_csv_name(name, date):
     dt = datetime.strptime(date, "%d/%m/%Y %H:%M")
-    name = '{:s}/{:s}_{:02d}_{:02d}_{:04d}.csv'.format(config.DATASETS_DIR, 
-                                                       name, dt.day,
-                                                       dt.month, dt.year)
+    csv_path = '{:s}/{:02d}_{:02d}'.format(config.DATASETS_DIR, dt.day,
+                                           dt.month)
+    if not os.path.exists(csv_path):
+        os.mkdir(csv_path)
+
+    name = '{:s}/{:s}.csv'.format(csv_path, name)
+
     return name
 
 def query_metrics(metrics_to_query, start, end):
@@ -116,16 +124,16 @@ def query_metrics(metrics_to_query, start, end):
         if ts_json == None:
             continue
 
-        query_to_csv(ts_json, start)
+        query_to_csv(ts_json, metric, start)
 
         results.append(ts_json)
 
+    print 'metrics_amount: ' + str(len(results))
+
     return results
 
-def query_to_csv(results, start_time):
+def query_to_csv(results, name, start_time):
 #    print '[query_to_csv] writing from json to csv: '
-
-    name = results[0]['metric']['__name__']
 #    print 'name: ' + name
 
     file_name = get_csv_name(name, start_time)
@@ -139,15 +147,18 @@ def query_to_csv(results, start_time):
 #        print json.dumps(ts_json['metric'], indent=4)
 #        print json.dumps(ts_json['values'], indent=4)
 
-        instance = ts_json['metric']['instance']
+        instance = 'NONE'
+        if len(ts_json['metric']) > 0:
+            instance = ts_json['metric']['instance']
 #        print 'instance: ' + instance
 
         for gauge in ts_json['values']:
+            time = datetime.fromtimestamp(gauge[0]).strftime('%d-%m-%Y %H:%M')
             writer.writerow({
                                 'name': name,
                                 'instance': instance,
                                 'dc': config.DATA_CENTER,
-                                'time': gauge[0],
+                                'time': time,
                                 'value': gauge[1]
                             })
 
@@ -163,12 +174,61 @@ def prepare_directories(start_time):
     if not os.path.exists(date_path):
         os.mkdir(date_path)
 
+def count_metrics(all_metrics):
+    stats_file = open('stat.txt', 'w')
+
+    http_metrics_amount = len([m for m in metrics if m.startswith('http') and
+                                                     m not in config.BAD_METRICS])
+
+    abgw_metrics_amount = len([m for m in metrics if m.startswith('abgw') and
+                                                     m not in config.BAD_METRICS])
+    job_metrics_amount = len([m for m in metrics if m.startswith('job:abgw') and
+                                                     m not in config.BAD_METRICS])
+
+    abgw_metrics_amount = abgw_metrics_amount + job_metrics_amount
+
+    node_metrics_amount = len([m for m in metrics if m.startswith('node') and
+                                                     m not in config.BAD_METRICS])
+    process_metrics_amount = len([m for m in metrics if m.startswith('process') and
+                                                        m not in config.BAD_METRICS])
+    pcs_metrics_amount = len([m for m in metrics if m.startswith('pcs') and
+                                                    m not in config.BAD_METRICS])
+
+    smart_metrics_amount = len([m for m in metrics if m.startswith('smart') and
+                                                    m not in config.BAD_METRICS])
+
+    total_node_metrics = node_metrics_amount + smart_metrics_amount
+    total_process_metrics = pcs_metrics_amount + process_metrics_amount
+
+    stats_file.write('http metrics - total {0}\n'.format(http_metrics_amount))
+    stats_file.write('abgw metrics - total {0}\n'.format(abgw_metrics_amount))
+    stats_file.write('node metrics - total {0}\n'.format(total_node_metrics))
+    stats_file.write('process metrics - total {0}\n'.format(total_process_metrics))
+
+    stats_file.close()
+
 if __name__ == '__main__':
     args = parse_arguments()
 
     prepare_directories(args.start)
 
     metrics = get_metrics_labels()
+    count_metrics(metrics)
+
+    if not os.path.exists(config.LOCAL_LABELS):
+        metrics_output = open(config.LOCAL_LABELS, 'w')
+        for metric in metrics:
+            metrics_output.write(metric + "\n")
+        metrics_output.close()
+    else:
+        local_metrics_file = open(config.LOCAL_LABELS, 'r')
+        local_metrics = local_metrics_file.read().split(' \n')
+        local_metrics_file.close()
+        difference = list(set(local_metrics) - set(metrics))
+        if len(difference) > 0:
+            'WARNING: metrics have changed on server'
+            'NEW METRICS: ' + str(difference)
+
     necessary_metrics = [name for name in metrics
                          if name.startswith(config.METRICS_PREFIX) and
                          name not in config.BAD_METRICS]
@@ -177,4 +237,5 @@ if __name__ == '__main__':
 
     for metric in failed_metrics:
         print 'Failed: ' + metric
+
 
