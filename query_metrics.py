@@ -147,8 +147,12 @@ def query_to_csv(results, name, start_time):
 #        print json.dumps(ts_json['metric'], indent=4)
 #        print json.dumps(ts_json['values'], indent=4)
 
-        instance = 'NONE'
+        instance = 'DC_SUM'
         if len(ts_json['metric']) > 0:
+            ''' if metric attibute is not empty,
+                it means that user didn't specified an
+                expr for that query.
+            '''
             instance = ts_json['metric']['instance']
 #        print 'instance: ' + instance
 
@@ -207,14 +211,7 @@ def count_metrics(all_metrics):
 
     stats_file.close()
 
-if __name__ == '__main__':
-    args = parse_arguments()
-
-    prepare_directories(args.start)
-
-    metrics = get_metrics_labels()
-    count_metrics(metrics)
-
+def compare_with_server(server_metrics):
     if not os.path.exists(config.LOCAL_LABELS):
         metrics_output = open(config.LOCAL_LABELS, 'w')
         for metric in metrics:
@@ -222,12 +219,29 @@ if __name__ == '__main__':
         metrics_output.close()
     else:
         local_metrics_file = open(config.LOCAL_LABELS, 'r')
-        local_metrics = local_metrics_file.read().split(' \n')
+        local_metrics = local_metrics_file.read().split()
         local_metrics_file.close()
-        difference = list(set(local_metrics) - set(metrics))
+        difference = list(set(local_metrics) - set(server_metrics))
+        print difference
         if len(difference) > 0:
             'WARNING: metrics have changed on server'
             'NEW METRICS: ' + str(difference)
+            return False
+
+    return True
+
+if __name__ == '__main__':
+    args = parse_arguments()
+
+    prepare_directories(args.start)
+
+    metrics = get_metrics_labels()
+    count_metrics(metrics)
+    compare_result = compare_with_server(metrics)
+    if compare_result == False:
+        print 'false'
+        sys.exit()
+
 
     necessary_metrics = [name for name in metrics
                          if name.startswith(config.METRICS_PREFIX) and
