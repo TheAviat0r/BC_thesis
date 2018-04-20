@@ -4,7 +4,10 @@ import csv, json, argparse
 import config
 
 from datetime import datetime
-from config import STORAGE_PROMETHEUS, QUERY_PARAMS, metrics_to_query
+from config import STORAGE_PROMETHEUS, QUERY_PARAMS, METRICS_TO_QUERY
+
+import pandas as pd
+import numpy as np
 
 failed_metrics = []
 
@@ -112,7 +115,7 @@ def get_csv_name(name, date):
 
     return name
 
-def query_metrics(metrics_to_query, start, end):
+def query_metrics(metrics_to_query, start, end, step='1m'):
     results = []
 
     ts_start = int(datetime_to_unix(start))
@@ -120,7 +123,7 @@ def query_metrics(metrics_to_query, start, end):
     
     for metric in metrics_to_query:
         print '[query_metrics] query: ' + metric
-        ts_json = get_timeseries(metric, ts_start, ts_end)
+        ts_json = get_timeseries(metric, ts_start, ts_end, step)
         if ts_json == None:
             continue
 
@@ -137,9 +140,13 @@ def query_to_csv(results, name, start_time):
 #    print 'name: ' + name
 
     file_name = get_csv_name(name, start_time)
-    csv_file = open(file_name, 'wb')
+    csv_file = open(file_name, 'w')
 
-    field_names = ['name', 'dc', 'instance', 'time', 'value']
+
+    field_names = ['time', name]
+    if config.TOTAL_SUM == False:
+        field_names.append('instance')
+
     writer = csv.DictWriter(csv_file, fieldnames=field_names) 
     writer.writeheader()
 
@@ -157,14 +164,19 @@ def query_to_csv(results, name, start_time):
 #        print 'instance: ' + instance
 
         for gauge in ts_json['values']:
-            time = datetime.fromtimestamp(gauge[0]).strftime('%d-%m-%Y %H:%M')
-            writer.writerow({
-                                'name': name,
-                                'instance': instance,
-                                'dc': config.DATA_CENTER,
-                                'time': time,
-                                'value': gauge[1]
-                            })
+            time = datetime.fromtimestamp(gauge[0]).strftime('%d_%m_%H:%M')
+            if config.TOTAL_SUM == True:
+                writer.writerow({
+                                    'time': time,
+                                    name: gauge[1]
+                                })
+            else:   
+                writer.writerow({
+                                    'instance': instance,
+                                    'dc': config.DATA_CENTER,
+                                    'time': time,
+                                    name: gauge[1]
+                                })
 
     csv_file.close()
 
@@ -242,12 +254,11 @@ if __name__ == '__main__':
         print 'false'
         sys.exit()
 
-
     necessary_metrics = [name for name in metrics
                          if name.startswith(config.METRICS_PREFIX) and
                          name not in config.BAD_METRICS]
 
-    results = query_metrics(necessary_metrics, args.start, args.end)
+    results = query_metrics(config.METRICS_TO_QUERY, args.start, args.end, '5m')
 
     for metric in failed_metrics:
         print 'Failed: ' + metric
