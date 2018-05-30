@@ -92,18 +92,8 @@ def dump_timeseries(results, start, end):
 
             print('-----------')
 
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--start', help='start datetime of timeseries')
-    parser.add_argument('-e', '--end', help='end datetime of timeseries')
-
-    args = parser.parse_args()
-    verify_args(args)
-
-    return args
-
 def query_one_hour_metric(metric, start, dc_name, step, counter):
-    end = start + timedelta(seconds=60*59) 
+    end = start + timedelta(seconds=1*60*59) 
     ts_json = get_timeseries(metric, start, end, dc_name, step)
     if ts_json == None:
         return None 
@@ -111,12 +101,12 @@ def query_one_hour_metric(metric, start, dc_name, step, counter):
     return ts_json
 
 def query_metrics(metrics_to_query, start, end, csv_dir, step='1m'):
+    dc_name = csv_dir[-3:]
     for metric in metrics_to_query:
         dt_start = datetime.strptime(start, "%d/%m/%Y %H:%M")
         dt_end = datetime.strptime(end, "%d/%m/%Y %H:%M")
 
-        print('[query_metrics] query: ' + metric[0])
-        dc_name = csv_dir[-3:]
+        print('[query_metrics] query: %s - %s' % (metric[0], dc_name))
         counter=0
         while dt_start < dt_end:
             ts_json = query_one_hour_metric(metric, dt_start, dc_name, step, counter)
@@ -151,42 +141,6 @@ def query_to_csv(results, name, csv_dir, write_counter):
 
     csv_file.close()
 
-"""
-def query_metrics(metrics_to_query, start, end, csv_dir, step='1m'):
-    results = []
-
-    for metric in metrics_to_query:
-        print('[query_metrics] query: ' + metric[0])
-        dc_name = csv_dir[-3:]
-        ts_json = get_timeseries(metric, start, end, dc_name, step)
-        if ts_json == None:
-            continue
-
-        query_to_csv(ts_json, metric[0], csv_dir)
-
-        results.append(ts_json)
-
-    return results
-
-def query_to_csv(results, name, csv_dir):
-    file_name = '%s/%s.csv' % (csv_dir, name)
-    csv_file = open(file_name, 'w')
-
-    field_names = ['time', name]
-
-    writer = csv.DictWriter(csv_file, fieldnames=field_names) 
-    writer.writeheader()
-
-    for ts_json in results:
-        for gauge in ts_json['values']:
-            time = datetime.fromtimestamp(gauge[0]).strftime('%d_%m_%H:%M')
-            writer.writerow({
-                            'time': time,
-                            name: gauge[1]
-                            })
-
-    csv_file.close()
-"""
 def prepare_directories():
     if not os.path.exists(config.DATASETS_DIR):
         os.mkdir(config.DATASETS_DIR)
@@ -273,9 +227,11 @@ if __name__ == '__main__':
         sys.exit()
 
     print('-------------------')
+    '''
     for train_dir in train_dirs:
         query_metrics(config.METRICS_TO_QUERY, config.TRAIN_START_TIME,
                       config.TRAIN_END_TIME, train_dir, step=config.QUERY_STEP)
+    '''
     print('-------------------')
     for test_dir in test_dirs:
         query_metrics(config.METRICS_TO_QUERY, config.TEST_START_TIME,
