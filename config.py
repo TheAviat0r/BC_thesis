@@ -5,8 +5,11 @@ DATA_CENTERS = [
 ]
 DATASETS_DIR = 'final'
 
-TRAIN_START_TIME = '17/04/2018 00:00'
-TRAIN_END_TIME = '22/05/2018 00:00'
+# Latest period with anomalies 
+TRAIN_START_TIME = '25/05/2018 14:00'
+TRAIN_END_TIME = '10/06/2018 15:00'
+#TRAIN_START_TIME = '17/04/2018 00:00'
+#TRAIN_END_TIME = '22/05/2018 00:00'
 
 TEST_START_TIME = '27/05/2018 00:00'
 TEST_END_TIME = '03/06/2018 12:00'
@@ -15,12 +18,8 @@ QUERY_STEP='5m'
 
 METRICS_TO_QUERY = [
     {
-        'name' : 'abgw_write_reqs_total',
-        'query' : "abgw_write_reqs_total{dc='us3', job='abgw'}"
-    },
-    {
-        'name' : 'abgw_read_reqs_total',
-        'query' : "abgw_read_reqs_total{dc='us3', job='abgw'}"
+        'name' : 'abgw_iop_latency_ms_rate',
+        'query' : "sum(irate(abgw_iop_latency_ms_sum{dc='us3'}[5m])) by (instance)"
     },
 ]
 
