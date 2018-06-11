@@ -1,33 +1,27 @@
 STORAGE_PROMETHEUS = 'http://dashboard.stg.corp.acronis.com:9090'
 QUERY_PARAMS = "{dc='eu6'}"
 DATA_CENTERS = [
-    'eu6',
-    'eu7',
+    'us3',
 ]
-DATASETS_DIR = 'datasets'
+DATASETS_DIR = 'final'
 
-TRAIN_START_TIME = '01/05/2018 00:00'
-TRAIN_END_TIME = '01/05/2018 03:00'
+TRAIN_START_TIME = '17/04/2018 00:00'
+TRAIN_END_TIME = '22/05/2018 00:00'
 
-TEST_START_TIME = '01/05/2018 03:00'
-TEST_END_TIME = '01/05/2018 05:00'
+TEST_START_TIME = '27/05/2018 00:00'
+TEST_END_TIME = '03/06/2018 12:00'
 
 QUERY_STEP='5m'
 
 METRICS_TO_QUERY = [
-    ('abgw_req_latency_ms_sum', 'sum', None),
-    ('abgw_iop_latency_ms_count', 'sum', None),
-    ('abgw_iop_latency_ms_sum', 'sum', None),
-    ('abgw_write_reqs_total', 'sum', None),
-    ('abgw_read_reqs_total', 'sum', None),
-    ('abgw_stat_reqs_total', 'sum', None),
-    ('abgw_write_bytes_total', 'sum', None),
-    ('abgw_read_bytes_total', 'sum', None),
-]
-
-RATE_METRICS = [
-    'abgw_conns_total',
-    'http_requests_total',
+    {
+        'name' : 'abgw_write_reqs_total',
+        'query' : "abgw_write_reqs_total{dc='us3', job='abgw'}"
+    },
+    {
+        'name' : 'abgw_read_reqs_total',
+        'query' : "abgw_read_reqs_total{dc='us3', job='abgw'}"
+    },
 ]
 
 # metrics that somehow are not collected in Prometheus
