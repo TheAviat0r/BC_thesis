@@ -18,9 +18,13 @@ QUERY_STEP='5m'
 
 METRICS_TO_QUERY = [
     {
-        'name' : 'abgw_iop_latency_ms_rate',
-        'query' : "sum(irate(abgw_iop_latency_ms_sum{dc='us3'}[5m])) by (instance)"
-    },
+        'name' : 'abgw_pull_progress_bytes_total',
+        'query' : "abgw_pull_progress_bytes_total{dc='us3'}",
+    }
+    #{
+    #    'name' : 'abgw_req_errs_total',
+    #    'query' : "sum(abgw_req_errs_total{dc='us3', err!='OK'}) by (instance)"
+    #},
 ]
 
 # metrics that somehow are not collected in Prometheus
