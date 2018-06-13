@@ -99,6 +99,8 @@ def query_to_csv(results, name, csv_dir):
 
     field_names = ['time', name, 'instance']
     writer = csv.DictWriter(csv_file, fieldnames=field_names) 
+    if open_mode == 'w':
+        writer.writeheader()
 
     for ts_json in results:
         instance = ts_json['metric']['instance']
@@ -139,7 +141,6 @@ if __name__ == '__main__':
     print('train dir: %s' % (str(train_dirs)))
     print('test dir: %s' % (str(test_dirs)))
 
-    """
     print('-------------------')
     for train_dir in train_dirs:
         query_metrics(config.METRICS_TO_QUERY, config.TRAIN_START_TIME,
@@ -149,6 +150,7 @@ if __name__ == '__main__':
     for test_dir in test_dirs:
         query_metrics(config.METRICS_TO_QUERY, config.TEST_START_TIME,
                       config.TEST_END_TIME, test_dir, step=config.QUERY_STEP)
+    """
 
     for metric in failed_metrics:
         print('Failed: ' + metric)

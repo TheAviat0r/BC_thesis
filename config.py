@@ -18,9 +18,29 @@ QUERY_STEP='5m'
 
 METRICS_TO_QUERY = [
     {
-        'name' : 'abgw_pull_progress_bytes_total',
-        'query' : "abgw_pull_progress_bytes_total{dc='us3'}",
-    }
+        'name' : 'abgw_file_lookup_errs_rate',
+        'query': "sum(irate(abgw_file_lookup_errs_total{dc='us3', err!='OK'}[5m])) by (instance)",
+    },
+    #{
+    #   'name' : "abgw_account_pull_errs_total",
+    #    'query' : "sum(abgw_account_pull_errs_total{dc='us3', err!='OK'}) by (instance)",
+    #}
+    #{
+    #    'name' : "abgw_account_pull_errs_total",
+    #    'query' : "sum(abgw_account_pull_errs_total{dc='us3', err!='OK'}",
+    #}
+    #{
+    #    'name' : 'abgw_io_limiting_failures_rate',
+    #    'query' : "sum(irate(abgw_io_limiting_failures_total{dc='us3'}[5m])) by (instance)",
+    #},
+    #{
+    #    'name' : 'abgw_write_rollback_bytes_rate',
+    #    'query' : "irate(abgw_write_rollback_bytes_total{dc='us3'}[5m])",
+    #},
+    #{
+    #    'name' : 'abgw_pull_progress_bytes_total',
+    #    'query' : "abgw_pull_progress_bytes_total{dc='us3'}",
+    #},
     #{
     #    'name' : 'abgw_req_errs_total',
     #    'query' : "sum(abgw_req_errs_total{dc='us3', err!='OK'}) by (instance)"
